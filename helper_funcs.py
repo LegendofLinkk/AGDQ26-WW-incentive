@@ -81,10 +81,12 @@ def get_ASM_encoding(asm_code, addr=0, ks=None, output_type='hex'):  # addr is t
     if ks is None:
         ks = Ks(KS_ARCH_PPC, KS_MODE_PPC64)
     #print(f'{addr:08X}', asm_code)
-    opcode, rest = asm_code.split(' ',1)
-    for sym in ['r', '->']:    # keystone doesn't like 'r' in register names or '->' in branch instructions, but I do
-        rest = rest.replace(sym, '')
-    asm_code = opcode + ' ' + rest
+    
+    if ' ' in asm_code:
+        opcode, rest = asm_code.split(' ',1)
+        for sym in ['r', '->']:    # keystone doesn't like 'r' in register names or '->' in branch instructions, but I do
+            rest = rest.replace(sym, '')
+        asm_code = opcode + ' ' + rest
 
     encoding, count = ks.asm(asm_code, addr=addr, as_bytes=False)
     int_word, BE_bytes = LE_bytes_to_BE_word(encoding)
@@ -104,7 +106,8 @@ def get_addr_value_pairs_from_file(filename, input_type = 'hex', output_type = '
     with open(filename, 'r') as f:
         #lines = f.readlines()
         for line in f:
-            if not line.strip():
+            line = line.split('#', 1)[0].strip()    # remove comments & whitespace
+            if not line:
                 continue
             addr_str, value_str = line.replace(':','').replace('\n','').split(None,1)
 

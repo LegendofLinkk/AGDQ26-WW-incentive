@@ -1,22 +1,29 @@
-803C4C08:   FFFFFFFF
-803C4C0C:   270F
+#############################################################################
+# PHASE 2 (MAIN PAYLOAD): Give Link all items/upgrades
+#############################################################################
+803C4C08:   FFFFFFFF    # max HP (way overdone)
+803C4C0C:   270F        # 9,999 rupees
 
-803C4C16:   3E3C
-803C4C18:   28
-803C4C1A:   02FF
-803C4C1C:   FF
+803C4C16:   3E3C        # sword & shield
+803C4C18:   28          # power bracelets
+803C4C1A:   02FF        # large wallet + max magic meter (way overdone)
+803C4C1C:   FF          # current magic meter (way overdone)
 
-803C4C44:   20782225
+# all inventory slots
+803C4C44:   20782225    
 803C4C48:   242D3421
 803C4C4C:   26292A2C
 803C4C50:   36315558
 803C4C54:   5050302F
 803C4C58:   33
 
+# own all items
 803C4CBC:   0F030103
 803C4CC0:   03
 
-803C4CC5:   3F
-803C4CC6:   FF07
+803C4CC5:   3F          # all songs
+803C4CC6:   FF07        # triforce + pearls
 
-803CA77F:   FF
+# stay topped off
+803CA77E:   00FF        # constantly heal
+803CA780:   00FF        # constantly refill magic

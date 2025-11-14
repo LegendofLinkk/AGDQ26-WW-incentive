@@ -1,8 +1,17 @@
+###############################################################################
+# PHASE 1: Setup input detection & cache management for phase 2 (main payload)
+###############################################################################
+
+# Controller 4 input detection
 803F0F50:   lwz r28, 0x10 (r12)
 803F0F54:   lwz r29, 0x10 (r12)
-803F0F58:   cmpw r28, r29
-803F0F5C:   beq -> 0x803F0F54
-803F0F60:   subi r3, 0xC (r12)
+803F0F58:   cmpw r28, r29           # check if controller 4 C/LR data has changed from a DME write
+803F0F5C:   beq -> 0x803F0F54       # loop until it does
+
+# Cache management
+803F0F60:   subi r3, 0xC (r12)      
 803F0F64:   li r4, 0x20
-803F0F68:   bl -> 0x80003374
-803F0F6C:   b -> 0x803F0F34
+803F0F68:   bl -> 0x80003374        # use in-game function to refresh caches for controller addresses
+
+# Loop back to pad 1
+803F0F6C:   b -> 0x803F0F34         # loop back to controller 1 C/LR data to continue phase 2
