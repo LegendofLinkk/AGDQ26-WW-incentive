@@ -100,22 +100,6 @@ def get_ASM_encoding(asm_code, addr=0, ks=None, output_type='hex'):  # addr is t
             return bytes.fromhex(hex_word)
 
 
-# Get list of (address, value) pairs from file and output the values in desired format
-def get_addr_value_pairs_from_file(filename, input_type = 'hex', output_type = 'hex', ks=None):
-    addr_value_pairs = []
-    with open(filename, 'r') as f:
-        #lines = f.readlines()
-        for line in f:
-            line = line.split('#', 1)[0].strip()    # remove comments & whitespace
-            if not line:
-                continue
-            addr_str, value_str = line.replace(':','').replace('\n','').split(None,1)
-
-            addr, value = addr_value_converter(addr_str, value_str, input_type, output_type, ks=ks)
-            addr_value_pairs.append((addr,value))
-    return addr_value_pairs
-
-
 # Convert the value in an (address, value) pair from one data type to another
 def addr_value_converter(addr, value, input_type, output_type, ks=None):
     addr = int(addr, 16) if isinstance(addr,str) else addr  # convert addr to an integer if it's still a hex string
@@ -124,7 +108,7 @@ def addr_value_converter(addr, value, input_type, output_type, ks=None):
     output_type = output_type.lower()   
     
     if isinstance(value, bytes):
-        assert input_type == output_type == 'bytes',                        "Are you really trying to convert FROM bytes to something else?"
+        assert input_type == output_type == 'bytes',  "Are you really trying to convert FROM bytes to something else?"
         return addr, value
     
     # if isinstance(value, int):
@@ -145,7 +129,24 @@ def addr_value_converter(addr, value, input_type, output_type, ks=None):
     raise TypeError(f"Unexpected conversion request: value={value}, input_type={input_type}, output_type={output_type}")
 
 
+# Get list of (address, value) pairs from file_list and output the values in desired format
+def get_addr_value_pairs_from_files(file_list, input_type = 'hex', output_type = 'hex', ks=None):
+    if isinstance(file_list, str):
+        file_list = [file_list]
+    
+    addr_value_pairs = []
+    for file in file_list:
+        with open(file, 'r') as f:
+            for line in f:
+                for sym in ['#', '//', ';']:
+                    line = line.split(sym, 1)[0].strip()    # remove comments & whitespace
+                if not line:
+                    continue
+                addr_str, value_str = line.replace(':','').split(None,1)
 
+                addr, value = addr_value_converter(addr_str, value_str, input_type, output_type, ks=ks)
+                addr_value_pairs.append((addr,value))
+    return addr_value_pairs
 
 
 #######################################################################################
@@ -153,7 +154,7 @@ def addr_value_converter(addr, value, input_type, output_type, ks=None):
 #######################################################################################
 '''
 During phase 1:
-- DME only writes to 0x803F0F3C (pad2 C/LR data)
+- DME only writes to 0x803F0F3C (controller 2 C/LR data)
 - All instructions are run several times
 - All writes can be done relative to r12=0x803F0F3C
 '''
@@ -190,7 +191,7 @@ def phase1_get_PAD2_instruction_list(addr_instruc_pairs, r12=0x803F0F3C, ks=None
 
 
 # Create phase 1 binary file from list of (address, instruction) pairs
-def phase1_create_bin_file(phase1_addr_instruc_pairs, phase1_bytes_file, r12=0x803F0F3C, ks=None):
+def phase1_create_bin(phase1_addr_instruc_pairs, phase1_bytes_file, r12=0x803F0F3C, ks=None):
     PAD2_instruc_list = phase1_get_PAD2_instruction_list(phase1_addr_instruc_pairs, r12=r12, ks=ks)
     with open(phase1_bytes_file,'wb') as f:
         for PAD2_instruc in PAD2_instruc_list:
@@ -247,16 +248,20 @@ def phase2_get_PAD_instruction_list(addr_hex_pairs):
 
 
 # Create phase 2 binary file from list of (address, hex_to_write) pairs
-def phase2_create_bin_file(phase2_addr_hex_pairs, phase2_bin_file, ks = None):
+def phase2_create_bin_from_AH_pairs(phase2_addr_hex_pairs, phase2_bin_file, ks = None):
     PAD_instruc_list = phase2_get_PAD_instruction_list(phase2_addr_hex_pairs)
     #print(PAD_instruc_list)
     with open(phase2_bin_file,'wb') as f:
-        for PAD_instruc in PAD_instruc_list:
+        for n, PAD_instruc in enumerate(PAD_instruc_list):
             #print(PAD_instruc)
-            PAD_instruc_bytes = get_ASM_encoding(PAD_instruc, addr=0, ks=ks, output_type='bytes')   # will need to edit addr if we do any non brl/bctrl branches during phase 2
+            PAD_addr = 0x803F0F34 + 8*(n % 4)
+            PAD_instruc_bytes = get_ASM_encoding(PAD_instruc, addr=PAD_addr, ks=ks, output_type='bytes')   # will need to edit addr if we do any non brl/bctrl branches during phase 2
             f.write(PAD_instruc_bytes)
 
-
+# Create phase 2 binary file from list of (address, hex_to_write) pairs
+def phase2_create_bin_from_files(phase2_file_list, phase2_bin_file, input_type = 'hex', ks = None):
+    phase2_AH_pairs = get_addr_value_pairs_from_files(phase2_file_list, input_type=input_type, output_type = 'hex', ks=ks)
+    phase2_create_bin_from_AH_pairs(phase2_AH_pairs, phase2_bin_file, ks=ks)
 
 #######################################################################################
 # Old way I used to create bytes files
