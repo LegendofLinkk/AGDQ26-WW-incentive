@@ -15,6 +15,8 @@ The full process is broken down into several phases:
 | 2 (main) | Write bytes from `phase2.bin` to controllers 1-4 to create main payload |
 | 3        | Resume gameplay |
 
+`AGDQ_ACE_position.sav` is a Dolphin save state that already has controllers 2-4 set (phase -1) and has already completed all of the ACE setup; simply press X to pull pictobox and trigger ACE (phase 0).
+
 `payload_mods/` is a folder containing mod files like `give_all_items.txt` that can be selected when regenerating `phase2.bin` with the GUI.
 
 ### NOTE: To edit/test the main payload, you only need to edit/add files in `payload_mods/` and use the GUI
