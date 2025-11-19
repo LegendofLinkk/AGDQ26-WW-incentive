@@ -1,5 +1,5 @@
 #############################################################################
-# PHASE 2 (MAIN PAYLOAD): Give Link all items/upgrades
+# Give Link all items/upgrades
 #############################################################################
 803C4C08:   FFFFFFFF    # max HP (way overdone)
 803C4C0C:   270F        # 9,999 rupees
