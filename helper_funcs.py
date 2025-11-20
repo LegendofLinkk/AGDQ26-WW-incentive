@@ -247,7 +247,6 @@ def phase1_final_PAD2_instrucs():
         'li r4, 0x40',
         'bl -> 0x80003374',
         'b -> 0x803F0F50'
-        #'nop'
     ]
     return PAD2_instrucs
 

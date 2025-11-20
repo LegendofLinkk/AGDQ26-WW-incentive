@@ -1,12 +1,13 @@
 #############################################################################
 # Give Link all items/upgrades
 #############################################################################
-803C4C08:   FFFFFFFF    # max HP (way overdone)
-803C4C0C:   270F        # 9,999 rupees
+803C4C08:   FFFFFFFF    # max HP (way overdone; normal is 00500050)
+803C4C0C:   270F        # 9,999 rupees (5,000 = 0x1388)
 
 803C4C16:   3E3C        # sword & shield
 803C4C18:   28          # power bracelets
-803C4C1A:   02FF        # large wallet + max magic meter (way overdone)
+803C4C1A:   02          # large wallet
+803C4C1B:   FF          # max magic meter (way overdone)
 803C4C1C:   FF          # current magic meter (way overdone)
 
 # all inventory slots
@@ -17,6 +18,13 @@
 803C4C54:   5050302F
 803C4C58:   33
 
+# arrow/bomb amounts (99 = 0x63)
+803C4C71:   63  # current arrow count
+803C4C72:   63  # current bomb count
+
+803C4C77:   63  # max arrow count
+803C4C78:   63  # max bomb count
+
 # own all items
 803C4CBC:   0F030103
 803C4CC0:   03
@@ -25,5 +33,5 @@
 803C4CC6:   FF07        # triforce + pearls
 
 # stay topped off
-803CA77E:   00FF        # constantly heal
-803CA780:   00FF        # constantly refill magic
+# 803CA77E:   00FF        # constantly heal
+# 803CA780:   00FF        # constantly refill magic
