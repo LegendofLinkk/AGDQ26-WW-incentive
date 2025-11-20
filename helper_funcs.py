@@ -70,8 +70,16 @@ def split_addr(addr):
     addr_off = addr % 0x10000
     if addr_off >= 0x8000:
         addr_base += 1
-        addr_off = 0x10000 - addr_off
+        addr_off = addr_off - 0x10000
+        #print(hex(addr_base), hex(addr_off), addr_off)
     return addr_base, addr_off
+
+# # Compute HA/LO used for PowerPC constant loading, e.g. 'lis rA, HA' + 'ori rA, rA, LO'
+# def ha_lo(value):
+#     value = int(value, 16) if isinstance(value,str) else value
+#     ha = ((value + 0x8000) >> 16) & 0xFFFF
+#     lo = value & 0xFFFF
+#     return ha, lo
 
 #######################################################################################
 # Assembly instructions -> hex/binary words
@@ -84,13 +92,19 @@ def get_ASM_encoding(asm_code, addr=0, ks=None, output_type='hex'):  # addr is t
     
     if ' ' in asm_code:
         opcode, rest = asm_code.split(' ',1)
-        for sym in ['r', '->']:    # keystone doesn't like 'r' in register names or '->' in branch instructions, but I do
-            rest = rest.replace(sym, '')
-        asm_code = opcode + ' ' + rest
+        rest = ' ' + rest
+        rest = rest.replace('->', '')   # keystone doesn't like '->' in branch instructions
+        for sym in [' r', '(r', ' f', '(f']:
+            #print(sym, sym[0])
+            rest = rest.replace(sym, sym[0])  # keystone doesn't like 'r' or 'f' in register names (this is a lazy/dangerous way to do this, may break some instructions)
+        asm_code = opcode + rest
+        #print(asm_code)
 
-    encoding, count = ks.asm(asm_code, addr=addr, as_bytes=False)
+    #print(f'bleh {asm_code} {hex(addr)}')
+    encoding, count = ks.asm(asm_code, addr=addr, as_bytes=False)            
     int_word, BE_bytes = LE_bytes_to_BE_word(encoding)
     hex_word = f'{int_word:08X}'
+    
     match output_type:
         case 'hex':
             return hex_word     # outputs as hex string
@@ -148,6 +162,43 @@ def get_addr_value_pairs_from_files(file_list, input_type = 'hex', output_type =
                 addr_value_pairs.append((addr,value))
     return addr_value_pairs
 
+#######################################################################################
+# ASM/hex parsing (useful for caching in phase 2)
+#######################################################################################
+# import re
+
+# def parse_patch_lines(text):
+#     entries = []
+#     for line in text.splitlines():
+#         m = re.match(r'^\s*([0-9A-Fa-f]{8})\s*([0-9A-Fa-f]{8})', line)
+#         if m:
+#             addr = int(m.group(1), 16)
+#             val = m.group(2)
+#             entries.append((addr, val))
+#     return sorted(entries, key=lambda x: x[0])
+
+# Determine whether a hex value is an ASM instruction or not (current implementation is roundabout, should improve/streamline)
+def is_instruction_write(val_hex):
+    # Heuristic: a 4-byte write (8 hex chars) aligned to 4 is likely an instruction.
+    return len(val_hex) == 8
+
+# Consolidate a list of (address, hex) pairs into a list of contiguous memory ranges of the form (start address, block size)
+def group_contiguous_instruction_ranges(addr_hex_pairs):
+    instr_addrs = sorted([addr for addr,val in addr_hex_pairs if is_instruction_write(val)])
+    if not instr_addrs:
+        return []
+    ranges = []
+    start = instr_addrs[0]
+    last = start
+    for a in instr_addrs[1:]:
+        if a == last + 4:
+            last = a
+        else:
+            ranges.append((start, last+4 - start))  # (start, length)
+            start = a
+            last = a
+    ranges.append((start, last+4 - start))
+    return ranges
 
 #######################################################################################
 # PHASE 1 FUNCTIONS
@@ -229,22 +280,46 @@ def phase2_get_instrucs_for_write(addr_target, hex_to_write):
         raise ValueError(f"Bad alignment or hex size -- {addr_target:08X}: {hex_to_write}")
     
     addr_base, addr_off = split_addr(addr_target)
-    #print(addr_base, addr_off)
+    #print(hex(addr_base), hex(addr_off), addr_off)
 
     PAD_instruc_3 = f'lis r15, 0x{addr_base:04X}'
-    PAD_instruc_4 = f'{store} r14, 0x{addr_off:04X} (r15)'
+    PAD_instruc_4 = f'{store} r14, {addr_off} (r15)'
     
     return [PAD_instruc_1, PAD_instruc_2, PAD_instruc_3, PAD_instruc_4]
 
+# Create list of pad 1-4 ASM instructions to manage caching for a given memory block (start address, length in bytes) 
+def phase2_get_instrucs_to_cache_block(start, length, cache_routine = 0x80003374):
+    #ha_start, lo_start = ha_lo(start)
+    #ha_len, lo_len = ha_lo(length)
+    #print(f"# Invalidate cache for range {start:08X} - {start+length-1:08X} (len {length})")
+    start = f'{start:08X}'
+    asm_instrucs = []
+    asm_instrucs.append(f"lis r3, 0x{start[:4]}")           # r3 = start (partial)
+    asm_instrucs.append(f"ori r3, r3, 0x{start[4:]}")       # r3 = start
+    asm_instrucs.append(f"li r4, 0x{length:04X}")           # r4 = length
+    asm_instrucs.append(f"bl -> 0x{cache_routine:08X}")     # branch to cache routine
+    return asm_instrucs
 
-# Convert a list of (address, hex) pairs to write during phase 2 into a list of PAD instructions (in ASM/hex/bytes) to write with DME
+# Create list of pad 1-4 ASM instructions to manage caching for all (address, hex) pairs in phase 2
+def phase2_get_cache_instrucs_from_AH_pairs(phase2_addr_hex_pairs):
+    #entries = parse_patch_lines(patch_text)
+    start_size_pairs = group_contiguous_instruction_ranges(phase2_addr_hex_pairs)
+    PAD_cache_instrucs = []
+    for start, size in start_size_pairs:
+        PAD_cache_instrucs += phase2_get_instrucs_to_cache_block(start, size)
+        PAD_cache_instrucs += ['nop'] * 4   # need pad 4 to change each time for new DME writes to be read
+    return PAD_cache_instrucs
+
+# Convert a list of (address, hex) pairs to write during phase 2 into a list of PAD instructions (in ASM) to write with DME
 def phase2_get_PAD_instruction_list(addr_hex_pairs):
-    PAD2_instruc_list = []
+    PAD_write_instrucs = []
     for (addr, hex_to_write) in addr_hex_pairs:
         #print(f'{instruc_addr:08X}', hex_to_write)
-        new_PAD2_instrucs = phase2_get_instrucs_for_write(addr, hex_to_write)
-        PAD2_instruc_list += new_PAD2_instrucs
-    return PAD2_instruc_list
+        new_PAD_instrucs = phase2_get_instrucs_for_write(addr, hex_to_write)
+        PAD_write_instrucs += new_PAD_instrucs
+    
+    PAD_cache_instrucs = phase2_get_cache_instrucs_from_AH_pairs(addr_hex_pairs)
+    return PAD_write_instrucs + PAD_cache_instrucs
 
 
 # Create phase 2 binary file from list of (address, hex_to_write) pairs
@@ -258,10 +333,22 @@ def phase2_create_bin_from_AH_pairs(phase2_addr_hex_pairs, phase2_bin_file, ks =
             PAD_instruc_bytes = get_ASM_encoding(PAD_instruc, addr=PAD_addr, ks=ks, output_type='bytes')   # will need to edit addr if we do any non brl/bctrl branches during phase 2
             f.write(PAD_instruc_bytes)
 
-# Create phase 2 binary file from list of (address, hex_to_write) pairs
+
+    
+
+# Create phase 2 binary file from list of mod files that contain (address, value) pairs
 def phase2_create_bin_from_files(phase2_file_list, phase2_bin_file, input_type = 'hex', ks = None):
     phase2_AH_pairs = get_addr_value_pairs_from_files(phase2_file_list, input_type=input_type, output_type = 'hex', ks=ks)
     phase2_create_bin_from_AH_pairs(phase2_AH_pairs, phase2_bin_file, ks=ks)
+
+
+
+
+
+
+
+
+
 
 #######################################################################################
 # Old way I used to create bytes files
