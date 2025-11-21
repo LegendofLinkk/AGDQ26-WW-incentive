@@ -80,7 +80,36 @@ def split_addr(addr):
 #     ha = ((value + 0x8000) >> 16) & 0xFFFF
 #     lo = value & 0xFFFF
 #     return ha, lo
+#######################################################################################
+# Classify whether so types
+#######################################################################################
+# Check whether a string is hex or not
+def is_hex(s: str) -> bool:
+    if s.startswith(("0x", "0X")):  # Strip optional leading 0x or 0X
+        s = s[2:]
+    if not s:
+        return False    # Empty string after stripping is not valid hex
+    return all(c in "0123456789abcdefABCDEF" for c in s)    # Check each character
 
+# Check whether an (address, value_str) pair makes a valid ASM instruction or not
+def is_ASM(addr, val_str, ks=None):
+    try:
+        # Try encoding; only the exception behavior matters
+        addr = int(addr, 16) if isinstance(addr, str) else addr
+        get_ASM_encoding(val_str, addr=addr, ks=ks, output_type='hex')
+        return True
+    except Exception:
+        return False
+
+# Determine whether a hex value is an ASM instruction or not (current implementation is roundabout, should improve/streamline)
+def get_value_type(addr, val_str, ks=None):
+    addr = int(addr, 16) if isinstance(addr,str) else addr
+    if is_hex(val_str):
+        return 'hex'
+    elif is_ASM(addr, val_str, ks=ks):               # should refine this later
+        return 'asm'
+    else:
+        raise TypeError(f"{addr:08X}: {val_str} is unrecognized (address, value) pair type")
 #######################################################################################
 # Assembly instructions -> hex/binary words
 #######################################################################################
@@ -113,7 +142,9 @@ def get_ASM_encoding(asm_code, addr=0, ks=None, output_type='hex'):  # addr is t
         case 'bytes':
             return bytes.fromhex(hex_word)
 
-
+#######################################################################################
+# (address, value) pairs
+#######################################################################################
 # Convert the value in an (address, value) pair from one data type to another
 def addr_value_converter(addr, value, input_type, output_type, ks=None):
     addr = int(addr, 16) if isinstance(addr,str) else addr  # convert addr to an integer if it's still a hex string
@@ -144,7 +175,7 @@ def addr_value_converter(addr, value, input_type, output_type, ks=None):
 
 
 # Get list of (address, value) pairs from file_list and output the values in desired format
-def get_addr_value_pairs_from_files(file_list, input_type = 'hex', output_type = 'hex', ks=None):
+def get_addr_value_pairs_from_files(file_list, output_type='hex', ks=None):
     if isinstance(file_list, str):
         file_list = [file_list]
     
@@ -158,33 +189,17 @@ def get_addr_value_pairs_from_files(file_list, input_type = 'hex', output_type =
                     continue
                 addr_str, value_str = line.replace(':','').split(None,1)
 
+                # Check whether value_str is ASM or hex
+                input_type = get_value_type(addr_str, value_str)
+
                 addr, value = addr_value_converter(addr_str, value_str, input_type, output_type, ks=ks)
                 addr_value_pairs.append((addr,value))
     return addr_value_pairs
 
-#######################################################################################
-# ASM/hex parsing (useful for caching in phase 2)
-#######################################################################################
-# import re
-
-# def parse_patch_lines(text):
-#     entries = []
-#     for line in text.splitlines():
-#         m = re.match(r'^\s*([0-9A-Fa-f]{8})\s*([0-9A-Fa-f]{8})', line)
-#         if m:
-#             addr = int(m.group(1), 16)
-#             val = m.group(2)
-#             entries.append((addr, val))
-#     return sorted(entries, key=lambda x: x[0])
-
-# Determine whether a hex value is an ASM instruction or not (current implementation is roundabout, should improve/streamline)
-def is_instruction_write(val_hex):
-    # Heuristic: a 4-byte write (8 hex chars) aligned to 4 is likely an instruction.
-    return len(val_hex) == 8
 
 # Consolidate a list of (address, hex) pairs into a list of contiguous memory ranges of the form (start address, block size)
 def group_contiguous_instruction_ranges(addr_hex_pairs):
-    instr_addrs = sorted([addr for addr,val in addr_hex_pairs if is_instruction_write(val)])
+    instr_addrs = sorted([addr for addr,val in addr_hex_pairs]) # if get_value_type(addr, val)=='asm'])
     if not instr_addrs:
         return []
     ranges = []
@@ -198,6 +213,7 @@ def group_contiguous_instruction_ranges(addr_hex_pairs):
             start = a
             last = a
     ranges.append((start, last+4 - start))
+    #print([(hex(a), s) for a,s in ranges])
     return ranges
 
 #######################################################################################
@@ -347,12 +363,9 @@ def phase2_create_bin_from_AH_pairs(phase2_addr_hex_pairs, phase2_bin_file, ks =
     
 
 # Create phase 2 binary file from list of mod files that contain (address, value) pairs
-def phase2_create_bin_from_files(phase2_file_list, phase2_bin_file, input_type = 'hex', ks = None):
-    phase2_AH_pairs = get_addr_value_pairs_from_files(phase2_file_list, input_type=input_type, output_type = 'hex', ks=ks)
+def phase2_create_bin_from_files(phase2_file_list, phase2_bin_file, ks = None):
+    phase2_AH_pairs = get_addr_value_pairs_from_files(phase2_file_list, output_type='hex', ks=ks)
     phase2_create_bin_from_AH_pairs(phase2_AH_pairs, phase2_bin_file, ks=ks)
-
-
-
 
 
 

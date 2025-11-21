@@ -111,7 +111,7 @@ def rebuild_phase2_bin():
     HF.phase2_create_bin_from_files(
         selected_files,
         phase2_bin_file,
-        input_type="hex",
+        #input_type="hex",
         ks=ks
     )
 

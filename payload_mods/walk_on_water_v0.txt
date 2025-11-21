@@ -2,7 +2,7 @@
 # Walk on water (will want to edit later to only trigger when water boots are equipped)
 ########################################################################################
 
-# Injection hook into dBgS_Acch::GroundCheck 
+# Put injection hook in dBgS_Acch::GroundCheck 
 800A2F7C:   4BF61094    # bl -> 0x80004010
 
 # Injected code (stored in unused region of memory, may relocate)
@@ -21,7 +21,7 @@
 
 ########################################################################################
 
-# Injection hook into daPy_lk_c::changeSwimProc
+# Put injection hook in daPy_lk_c::changeSwimProc
 8013D020:   4BEC7028    # b -> 0x80004048 (from daPy_lk_c::changeSwimProc)
 
 # Injected code (may relocate)

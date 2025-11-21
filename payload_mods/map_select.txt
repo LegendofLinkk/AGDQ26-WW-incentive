@@ -1,0 +1,40 @@
+#############################################################################
+# Activate Map Select when holding Y in loading zone
+#############################################################################
+
+# Put injection hook in f_pc_profile::fpcPf_Get (replaces 'blr')
+8004004C:   b   ->  0x80330EE4
+
+# Load the 16-bit controller input from 0x803ED84A
+80330EE4:   lis     r14, 0x803F         # r14 = 0x803ED84A
+80330EE8:   lhz     r15, -0x27B6 (r14)  # r15 = *(u16*)0x803ED84A
+
+########################################################################################
+# Check if Y is being held (mask 0x0800)
+80330EEC:   li      r16, 0x0800
+80330EF0:   and.    r17, r15, r16
+80330EF4:   beq ->  0x80330F04          # if not pressed, skip to X check
+
+# If Y is pressed, write 0x803940A0 → 0x80ADD334
+80330EF8:   lis     r18, 0x8039
+80330EFC:   ori     r18, r18, 0x40A0    # r18 = 0x803940A0
+80330F00:   b   ->  0x80330F18          # jump to write module
+
+#########################################################################################
+# Check if X is being held (mask 0x0400)
+80330F04:   li      r16, 0x0400
+80330F08:   and.    r17, r15, r16
+80330F0C:   beq  -> 0x80330F20          # if neither X nor Y is pressed, skip to end
+
+# If X is pressed, write 0x80394BC4 → 0x80ADD334
+80330F10:   lis     r18, 0x8039
+80330F14:   ori     r18, r18, 0x4BC4    # r18 = 0x80394BC4
+
+########################################################################################
+# Perform write (if Y or X is pressed)
+80330F18:   lis     r19, 0x80AE
+80330F1C:   stw     r18, -0x2CCC(r19)     # r19 = 0x80ADD334
+
+########################################################################################
+# Return to normal code
+80330F20:   blr
