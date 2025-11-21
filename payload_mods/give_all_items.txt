@@ -32,6 +32,23 @@
 803C4CC5:   3F          # all songs
 803C4CC6:   FF07        # triforce + pearls
 
+# Sea Chart all sectors mapped
+803C4D0C:   03030303
+803C4D10:   03030303
+803C4D14:   03030303
+803C4D18:   03030303
+803C4D1C:   03030303
+803C4D20:   03030303
+803C4D24:   03030303
+803C4D28:   03030303
+803C4D2C:   03030303
+803C4D30:   03030303
+803C4D34:   03030303
+803C4D38:   03030303
+803C4D3C:   03
+
+803C5235:   0A          # own sea chart (requires bit 0x08; 0x02 is WW cutscene)
+
 # Max rupees & HP
 803CA768:   1388    # 5,000 rupees (9,999 gets overwritten if you collect any)
 803CA77E:   0044    # increase HP to max (20 hearts)
