@@ -26,7 +26,7 @@
 # 80330FAC:   b -> 0x80330F..
 
 ###############################################################
-# Resume d_item::execItemGet
+# Resume f_op_actor_mng::fopAcM_createItemForTrBoxDemo
 80330FAC:   or. r27, r4, r4
 80330FB0:   blr
 
