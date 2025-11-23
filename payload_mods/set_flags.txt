@@ -2,12 +2,12 @@
 # Set story flags
 #############################################################################
 803C523B: 80    # Spawn KorL
-803C5235: 08    # Korl Sail Text
+803C5235: 0B    # KoRL's Sail Text, WW cutscene, mapfish cutscene
 803C5245: 80    # South Wind Flag
-803C5236: 9D    # KoRL's Din's Pearl Text, Talk to KoRL first time, KoRL's Farore's Pearl Text, Talk to KoRL after Farore's Pearl, KoRL's Endless Night Text
+803C5236: 9C    # KoRL's Din's Pearl Text, Talk to KoRL first time, KoRL's Farore's Pearl Text, Talk to KoRL after Farore's Pearl
 803C524B: 02    # KoRL's Bombs Text
 803C5256: 8A    # Hero's Clothes Cutscene, Enter KoRL first time (Last Savewarp Flag), Enter KoRL after Farore's Pearl
 803C525B: 20    # KoRL's Nayru's Pearl Text
 
 803C5259: 01    # Animation Set 2 (do we need set 1 for anything?)
-# 803C5236: 9F    # Endless Night (overwrites earlier line)
+# 803C5236: 9F    # add Endless Night + related KoRL text (overwrites earlier line)

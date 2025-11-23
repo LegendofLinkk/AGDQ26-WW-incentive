@@ -14,8 +14,8 @@
 # All inventory slots
 803C4C44:   20782225    
 803C4C48:   242D3421
-803C4C4C:   26292A2C
-803C4C50:   36315558
+803C4C4C:   26FF2A2C    # no boots (26292A2C for iron boots)
+803C4C50:   36FF5558    # no bombs (36315558 for bombs)
 803C4C54:   5050302F
 803C4C58:   33
 

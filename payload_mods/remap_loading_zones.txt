@@ -1,0 +1,123 @@
+#############################################################################
+# Modify Ghost Ship Loading Zones
+#############################################################################
+
+# Put injection hook in d_com_inf_game::dComIfGp_setNextStage
+80053888:   b -> 0x80331000             # replaces blr
+
+#############################################################################
+# Check if mStageName is "PShip"
+80331000:   lis     r3, 0x803C
+80331004:   ori     r3, r3, 0x9D48      # r3 = 803C9D48 (start of mNextStage.mStageName)
+
+80331008:   lbz     r4, 0(r3)
+8033100C:   cmpwi   r4, 0x50
+80331010:   bne ->  0x803310CC          # fail → check next mStageName String
+
+80331014:   lbz     r4, 1(r3)
+80331018:   cmpwi   r4, 0x53
+8033101C:   bne ->  0x803310CC          # fail → check next mStageName String
+
+80331020:   lbz     r4, 2(r3)
+80331024:   cmpwi   r4, 0x68
+80331028:   bne ->  0x803310CC          # fail → check next mStageName String
+
+8033102C:   lbz     r4, 3(r3)
+80331030:   cmpwi   r4, 0x69
+80331034:   bne ->  0x803310CC          # fail → check next mStageName String
+
+80331038:   lbz     r4, 4(r3)
+8033103C:   cmpwi   r4, 0x70
+80331040:   beq ->  0x80331094          # Branch to set mStageName & Room Number
+
+#############################################################################
+# Check if mStageName is "sea 45"
+80331044:   lis     r3, 0x803C
+80331048:   ori     r3, r3, 0x9D48      # r3 = 803C9D48 (start of mNextStage.mStageName)
+# Ignore - will branch below since r3 isn't getting overwritten
+
+8033104C:   lbz     r4, 0(r3)
+80331050:   cmpwi   r4, 0x73
+80331054:   bne ->  0x803310D0          # fail → blr
+
+80331058:   lbz     r4, 1(r3)
+8033105C:   cmpwi   r4, 0x65
+80331060:   bne ->  0x803310D0          # fail → blr
+
+80331064:   lbz     r4, 2(r3)
+80331068:   cmpwi   r4, 0x61
+8033106C:   bne ->  0x803310D0          # fail → blr
+
+80331070:   lbz     r4, 3(r3)
+80331074:   cmpwi   r4, 0x00
+80331078:   bne ->  0x803310D0          # fail → blr
+
+8033107C:   lbz     r4, 4(r3)
+80331080:   cmpwi   r4, 0x34
+80331084:   bne ->  0x803310D0          # fail → blr
+
+80331088:   lbz     r4, 5(r3)
+8033108C:   cmpwi   r4, 0x35
+80331090:   beq ->  0x803310D8           # Branch to Setting Event Register
+
+#############################################################################
+# write "SubD45\0" to mStageName
+80331094:   lis     r4, 0x5375
+80331098:   ori     r4, r4, 0x6244
+8033109C:   stw     r4, 0(r3)            # "SubD"
+803310A0:   li      r4, '4'
+803310A4:   stb     r4, 4(r3)
+803310A8:   li      r4, '5'
+803310AC:   stb     r4, 5(r3)
+803310B0:   li      r4, 0
+803310B4:   stb     r4, 6(r3)            # null terminator
+
+#######################################
+# Set SubD45 room number
+803310B8:   lis     r5, 0x8033
+803310BC:   lbz     r4, 0x10D4(r5)      # r4 = roomNo (stored at 803310D4)
+803310C0:   stb     r4, 0xA(r3)         # write roomNo to mNextStage.mRoomNo
+803310C4:   addi    r4, r4, 1           # increase roomNo by 1
+803310C8:   stb     r4, 0x10D4(r5)      # store it for next time
+
+#############################################################################
+# Check Next String
+803310CC:   b -> 0x8033104C
+
+#############################################################################
+# Resume d_com_inf_game::dComIfGp_setNextStage
+803310D0:   blr
+
+#############################################################################
+# SubD45 room number; gets increased by 1 each visit
+803310D4:   00
+
+#############################################################################
+# Set GShip Event Register back to 0
+803310D8:   lis     r17, 0x803C
+803310DC:   ori     r17, r17, 0x52B4
+803310E0:   li      r18, 0
+803310E4:   stb     r18, 0(r17)
+
+#############################################################################
+# Check if Bombs Slot contains 0x31
+803310E8:   lis     r17, 0x803C
+803310EC:   ori     r17, r17, 0x4C51
+803310F0:   lbz     r18, 0(r17)
+803310F4:   cmpwi   r18, 0x31
+803310F8:   bne ->  0x803310D0          # fail → blr
+
+#############################################################################
+# write "M_DaiB" to mStageName
+803310FC:   lis     r4, 0x4D5F
+80331100:   ori     r4, r4, 0x4461
+80331104:   stw     r4, 0(r3)            # "M_Da"
+80331108:   li      r4, 0x69
+8033110C:   stb     r4, 4(r3)            # i
+80331110:   li      r4, 0x42
+80331114:   stb     r4, 5(r3)            # B
+80331118:   li      r4, 0
+8033111C:   stb     r4, 6(r3)            # null terminator     
+80331120:   li      r4, 1
+80331124:   stb     r4, 9(r3)           #Set Spawn Point
+80331128:   blr
