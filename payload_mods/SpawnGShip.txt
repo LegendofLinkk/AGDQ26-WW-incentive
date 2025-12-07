@@ -15,7 +15,7 @@
 8033300C:   blr
 80333010:   li      r3,  0xB3           
 80333014:   lis     r4,  0x0000         
-80333018:   ori     r4, r4, 0x0000      # No Path, will go straight, 1st moon phase
+80333018:   ori     r4, r4, 0x0001      # No Path, will go straight, 2nd moon phase
 8033301C:   lis     r5,  0x8033
 80333020:   ori     r5, r5, 0x3028      #Out of Bounds outside FF2
 80333024:   b   ->  0x80333008

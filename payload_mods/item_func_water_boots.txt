@@ -13,7 +13,7 @@
 
 #####################################################################################
 # Set day of week
-8033150C:   li r14, 1               # set to day 1 (change as desired)
+8033150C:   li r14, 2               # set to day 2 (change as desired)
 80331510:   sth r14, 0x4C30 (r15)
 
 # Trigger endless night
