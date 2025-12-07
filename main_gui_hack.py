@@ -18,19 +18,21 @@ PAD2_addr = 0x803F0F3C  # controller 2 C/LR data address (also r12)
 PAD3_addr = 0x803F0F44  # controller 3 C/LR data address
 PAD4_addr = 0x803F0F4C  # controller 4 C/LR data address
 
-payload_folder = Path.cwd() / "payload_mods"
+payload_folder      = Path.cwd() / "payload_mods"
+csv_folder          = Path.cwd() / "csv_files"
+
 
 phase_1_AI_file     = "phase1_addr_instruc_pairs.txt"
 phase_1_bin_file    = "phase1.bin"
 phase_2_bin_file    = "phase2.bin"
 
-phase_m1_csv_file   = "phase_m1.csv"
-phase_1_csv_file    = "phase_1.csv"
-phase_2_csv_file    = "phase_2.csv"
-#phase_3_csv_file    = "phase_3.csv"
+phase_m1_csv_file   = csv_folder / "phase_m1.csv"
+phase_1_csv_file    = csv_folder / "phase_1.csv"
+phase_2_csv_file    = csv_folder / "phase_2.csv"
+#phase_3_csv_file    = csv_folder / "phase_3.csv"
 
-phase_0_csv_file    = "phase_0_hack.csv"
-phase_3_csv_file    = "phase_3_hack.csv"
+phase_0_csv_file    = csv_folder / "phase_0_hack.csv"
+phase_3_csv_file    = csv_folder / "phase_3_hack.csv"
 
 
 nop         = 0x60000000 # "no operation" instruction
