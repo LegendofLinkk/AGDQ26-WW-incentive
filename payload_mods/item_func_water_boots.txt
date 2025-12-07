@@ -12,5 +12,14 @@
 80331508:   stb r4, 0x4C4D (r15)   
 
 #####################################################################################
+# Set day of week
+8033150C:   li r14, 1               # set to day 1 (change as desired)
+80331510:   sth r14, 0x4C30 (r15)
+
+# Trigger endless night
+80331514:   li r14, 0x9F            # Endless Night + related KoRL text (overwrites earlier line)
+80331518:   stb r14, 0x5236 (r15)
+
+#####################################################################################
 # Resume normal code (branch back into d_item::execItemGet)
-8033150C:   blr     # b -> 0x800C2E20
+8033151C:   blr     # b -> 0x800C2E20
