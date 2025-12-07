@@ -1,4 +1,4 @@
-from keystone import Ks, KS_ARCH_PPC, KS_MODE_PPC64
+from keystone import Ks, KsError, KS_ARCH_PPC, KS_MODE_PPC64
 
 #######################################################################################
 # Register dictionary at start of ACE payload
@@ -99,40 +99,123 @@ def is_ASM(addr, val_str, ks=None):
         get_ASM_encoding(val_str, addr=addr, ks=ks, output_type='hex')
         return True
     except Exception:
+        print(hex(addr), val_str)
         return False
 
 # Determine whether a hex value is an ASM instruction or not (current implementation is roundabout, should improve/streamline)
-def get_value_type(addr, val_str, ks=None):
+def get_value_type(addr, val, ks=None):
     addr = int(addr, 16) if isinstance(addr,str) else addr
-    if is_hex(val_str):
+    if isinstance(val, int):
+        return 'int'
+    elif is_hex(val):
         return 'hex'
-    elif is_ASM(addr, val_str, ks=ks):               # should refine this later
+    elif is_ASM(addr, val, ks=ks):               # should refine this later
         return 'asm'
     else:
-        raise TypeError(f"{addr:08X}: {val_str} is unrecognized (address, value) pair type")
+        #print(val, type(val))
+        raise TypeError(f"{addr:08X}: {val} is unrecognized (address, value) pair type")
 #######################################################################################
 # Assembly instructions -> hex/binary words
 #######################################################################################
-# Use Keystone to convert a PowerPC assembly instruction into hex/bin/bytes
+# E.g. fcmp0 cr0, f22, f21
+def encode_fcmpo(operands):
+    """
+    operands = ["cr0", "f22", "f21"] or ["cr0","fr22","fr21"]
+    returns uppercase hex string, e.g. "FD58A040"
+    """
+    if len(operands) != 3:
+        raise ValueError(f"fcmpo requires 3 operands, got: {operands}")
+
+    cr = operands[0]
+    fa = operands[1]
+    fb = operands[2]
+
+    # --- parse cr field ---
+    # accept crX or crfX
+    if cr.startswith("crf"):
+        crfD = int(cr[3:])
+    elif cr.startswith("cr"):
+        crfD = int(cr[2:])
+    else:
+        raise ValueError(f"Invalid condition register field: {cr}")
+
+    # --- parse floating registers ---
+    fa = fa.replace("fr", "").replace("f", "")
+    fb = fb.replace("fr", "").replace("f", "")
+    a = int(fa)
+    b = int(fb)
+
+    # --- fcmpo fields ---
+    opcode = 63     # 0x3F
+    XO     = 32     # 0b100000
+    Rc     = 0
+
+    # Assemble the word
+    word = (
+        (opcode << 26) |
+        (crfD  << 23) |
+        (a     << 16) |
+        (b     << 11) |
+        (XO    << 1 ) |
+        Rc
+    )
+
+    # Return hex word exactly as Keystone does
+    return f"{word:08X}"
+
+
+# Use custom encoding for ASM instructions that aren't recognized by Keystone
+def custom_encode_ASM(asm_code, addr=0):
+    # strip whitespace, inline comments, etc.
+    asm = asm_code.split('#')[0].strip()
+
+    # canonicalize spacing (optional)
+    asm = " ".join(asm.replace(",", " ").split())
+
+    # extract mnemonic and operands
+    parts = asm.split()
+    if not parts:
+        raise ValueError(f"Empty instruction for custom encoder: {asm_code}")
+
+    mnemonic = parts[0].lower()
+    operands = parts[1:]
+
+    # ---- Dispatch table ----
+    if mnemonic == "fcmpo":
+        return encode_fcmpo(operands)
+
+    # Add more custom handlers here:
+    # if mnemonic == "fcmpu": ...
+    # if mnemonic == "ps_add": ...
+    # etc.
+
+    raise NotImplementedError(f"Custom PPC encoder does not support: {asm_code}")
+
+# Use Keystone to convert a Gekko PowerPC assembly instruction into hex/bin/bytes
 def get_ASM_encoding(asm_code, addr=0, ks=None, output_type='hex'):  # addr is the instruction address (for branch offsets)
     if ks is None:
         ks = Ks(KS_ARCH_PPC, KS_MODE_PPC64)
     #print(f'{addr:08X}', asm_code)
     
-    if ' ' in asm_code:
-        opcode, rest = asm_code.split(' ',1)
-        rest = ' ' + rest
-        rest = rest.replace('->', '')   # keystone doesn't like '->' in branch instructions
-        for sym in [' r', '(r', ' f', '(f']:
-            #print(sym, sym[0])
-            rest = rest.replace(sym, sym[0])  # keystone doesn't like 'r' or 'f' in register names (this is a lazy/dangerous way to do this, may break some instructions)
-        asm_code = opcode + rest
-        #print(asm_code)
+    #print(f'bleh {hex(addr)}: {asm_code}')
+    try:
+        if ' ' in asm_code:
+            opcode, rest = asm_code.split(' ',1)
+            rest = ' ' + rest
+            rest = rest.replace('->', '')   # keystone doesn't like '->' in branch instructions
+            for sym in [' r', '(r', ' f', '(f']:
+                #print(sym, sym[0])
+                rest = rest.replace(sym, sym[0])  # keystone doesn't like 'r' or 'f' in register names (this is a lazy/dangerous way to do this, may break some instructions)
+            asm_code = opcode + rest
+            #print(asm_code)
+        
+        encoding, count = ks.asm(asm_code, addr=addr, as_bytes=False)            
+        int_word, BE_bytes = LE_bytes_to_BE_word(encoding)
+        hex_word = f'{int_word:08X}'
+    
+    except KsError as e:
+        hex_word = custom_encode_ASM(asm_code, addr=addr)
 
-    #print(f'bleh {asm_code} {hex(addr)}')
-    encoding, count = ks.asm(asm_code, addr=addr, as_bytes=False)            
-    int_word, BE_bytes = LE_bytes_to_BE_word(encoding)
-    hex_word = f'{int_word:08X}'
     
     match output_type:
         case 'hex':
@@ -146,15 +229,19 @@ def get_ASM_encoding(asm_code, addr=0, ks=None, output_type='hex'):  # addr is t
 # (address, value) pairs
 #######################################################################################
 # Convert the value in an (address, value) pair from one data type to another
-def addr_value_converter(addr, value, input_type, output_type, ks=None):
+def addr_value_converter(addr, value, output_type, ks=None):
     addr = int(addr, 16) if isinstance(addr,str) else addr  # convert addr to an integer if it's still a hex string
 
-    input_type = input_type.lower()
+    #input_type = input_type.lower()
+    input_type = get_value_type(addr, value)
     output_type = output_type.lower()   
     
-    if isinstance(value, bytes):
-        assert input_type == output_type == 'bytes',  "Are you really trying to convert FROM bytes to something else?"
+    if input_type == output_type:
         return addr, value
+    
+    # if isinstance(value, bytes):
+    #     assert input_type == output_type == 'bytes',  "Are you really trying to convert FROM bytes to something else?"
+    #     return addr, value
     
     # if isinstance(value, int):
     #     assert (input_type == 'hex') and (output_type in ['hex','bytes']),  "Unpexpected integer"
@@ -170,6 +257,9 @@ def addr_value_converter(addr, value, input_type, output_type, ks=None):
         
         elif input_type == 'hex' and output_type == 'bytes':
             return (addr, bytes.fromhex(value))
+        
+        elif input_type == 'hex' and output_type == 'int':
+            return (addr, int(value, 16))
     
     raise TypeError(f"Unexpected conversion request: value={value}, input_type={input_type}, output_type={output_type}")
 
@@ -190,9 +280,11 @@ def get_addr_value_pairs_from_files(file_list, output_type='hex', ks=None):
                 addr_str, value_str = line.replace(':','').split(None,1)
 
                 # Check whether value_str is ASM or hex
-                input_type = get_value_type(addr_str, value_str)
+                #input_type = get_value_type(addr_str, value_str)
+                # if input_type == 'asm':
+                #     # set cache flag?
 
-                addr, value = addr_value_converter(addr_str, value_str, input_type, output_type, ks=ks)
+                addr, value = addr_value_converter(addr_str, value_str, output_type, ks=ks)
                 addr_value_pairs.append((addr,value))
     return addr_value_pairs
 
@@ -222,7 +314,7 @@ def group_contiguous_instruction_ranges(addr_hex_pairs):
 '''
 During phase 1:
 - DME only writes to 0x803F0F3C (controller 2 C/LR data)
-- All instructions are run several times
+- All instructions are run several times (in case o write/execute conflicts)
 - All writes can be done relative to r12=0x803F0F3C
 '''
 
@@ -368,8 +460,42 @@ def phase2_create_bin_from_files(phase2_file_list, phase2_bin_file, ks = None):
     phase2_create_bin_from_AH_pairs(phase2_AH_pairs, phase2_bin_file, ks=ks)
 
 
+####################################################################################################
+# Convert phase 1/2 binary files to csv files that Trog can use to operate the USB Gecko on console
+####################################################################################################
+# Each phase 1 write has a ~20% chance to fail (write/execute collision), so likely need to perform each one several times (10 is more than enough)
+def phase1_bin_to_csv(binfile, csvfile):
+    with open(binfile,'rb') as f_in, open(csvfile,'w') as f_out:
+        # Phase 0.5: nop out all 4 controllers' button/left stick data (pads 3-4 need to already be harmless before this, but might as well ensure their exact values)
+        for n in range(4):
+            button_addr = 0x803F0F30 + n*0x08
+            f_out.write(f"0x{button_addr:08X}, 0x10808080\n")
 
+        # nop out controller 1 C-stick/trigger data (could wait until phase 1.5, but might as well do it now)    
+        f_out.write(f"0x803F0F34, 0x60000000\n")
+        
+        # Phase 1 proper: Write bytes from phase1.bin to pad 2 C/LR data to set up input detection & caching for phase 2 (main payload)
+        input_bytes = f_in.read()
+        instructions = [input_bytes[i:i+4] for i in range(0, len(input_bytes), 4)]
+        for instruction in instructions:
+            f_out.write(f"0x803F0F3C, 0x{instruction.hex().upper()}\n")
+        
+        # Phase 1.5: Transition to phase 2 (main payload)
+        f_out.write(f"0x803F0F44, 0x60000000\n")    # pad 3 (remove phase 1 caching)
+        f_out.write(f"0x803F0F4C, 0x60000000\n")    # pad 4 (remove b -> pad 2)
+        f_out.write(f"0x803F0F3C, 0x60000000\n")    # pad 2
 
+# Phase 2 writes the main payload & each write should only need to be performed once
+def phase2_bin_to_csv(binfile, csvfile):
+    with open(binfile,'rb') as f_in, open(csvfile,'w') as f_out:
+        input_bytes = f_in.read()
+        instructions = [input_bytes[i:i+4] for i in range(0, len(input_bytes), 4)]
+        for n, instruction in enumerate(instructions):
+            pad_idx = n % 4
+            pad_address = 0x803F0F34 + (pad_idx * 0x08)  # controller C-stick/LR address
+            f_out.write(f"0x{pad_address:08X}, 0x{instruction.hex().upper()}\n")
+        #f_outwrite(f"0x803F0F4C, 0x4BE24718")  # branch to safety ('phase 3')
+        
 
 
 

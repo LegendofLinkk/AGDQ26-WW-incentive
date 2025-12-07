@@ -1,7 +1,11 @@
-walk_on_water_v0:   80004010 - 80004034 (0x24)
-                    80004048 - 80004070 (0x28)
-                    803C5E44 - 803C5E48 (0x04)
+Unused TRK memory: 80330EE4 - 80338680(?) [region size = 0x779C = 30,620 bytes ~ 30 kB]
 
-map_select:         80330EE4 - 80330F24 (0x30)
-remap_chest_items:  80330F80 - 80330FB4 (0x34)
-Pship_to_SubD45:    80331000 - 80331081 (0x81)
+walk_on_water_v0:       80004010 - 80004034 (0x24)
+                        80004048 - 80004070 (0x28)
+                        803C5E44 - 803C5E48 (0x04)
+
+map_select:             80330EE4 - 80330F24 (0x30)
+remap_chest_items:      80330F74 - 80330FAC (0x34)
+remap_loading_zones_v1: 80331000 - 80331188 (0x188)
+item_func_water_boots:  80331500 - 80331510 (0x10)
+walk_on_water_v1:       80331550 - 803315E0 (0x90)

@@ -1,0 +1,16 @@
+#####################################################################################
+# Replace unused d_item::item_func_water_boots() with custom code
+#####################################################################################
+
+# Put injection hook into d_item::item_func_water_boots()
+800C354C:   bl -> 0x80331500        # replaces blr
+
+#####################################################################################
+# Put water boots in inventory (currently replaces iron boots slot, but can put wherever)
+80331500:   li r4, 0x2B
+80331504:   lis r15, 0x803C
+80331508:   stb r4, 0x4C4D (r15)   
+
+#####################################################################################
+# Resume normal code (branch back into d_item::execItemGet)
+8033150C:   blr     # b -> 0x800C2E20

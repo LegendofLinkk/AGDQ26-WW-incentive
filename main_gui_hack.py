@@ -13,32 +13,35 @@ import helper_funcs as HF
 ############################################################
 # CONSTANTS
 ############################################################
-# PAD1_addr = 0x803F0F34  # controller 1 C/LR data address
-# PAD2_addr = 0x803F0F3C  # controller 2 C/LR data address (also r12)
-# PAD3_addr = 0x803F0F44  # controller 3 C/LR data address
-# PAD4_addr = 0x803F0F4C  # controller 4 C/LR data address
+PAD1_addr = 0x803F0F34  # controller 1 C/LR data address
+PAD2_addr = 0x803F0F3C  # controller 2 C/LR data address (also r12)
+PAD3_addr = 0x803F0F44  # controller 3 C/LR data address
+PAD4_addr = 0x803F0F4C  # controller 4 C/LR data address
 
-payload_folder      = Path.cwd() / "payload_mods"
-csv_folder          = Path.cwd() / "csv_files"
+payload_folder = Path.cwd() / "payload_mods"
 
 phase_1_AI_file     = "phase1_addr_instruc_pairs.txt"
 phase_1_bin_file    = "phase1.bin"
 phase_2_bin_file    = "phase2.bin"
 
-phase_m1_csv_file   = csv_folder / "phase_m1.csv"
-phase_1_csv_file    = csv_folder / "phase_1.csv"
-phase_2_csv_file    = csv_folder / "phase_2.csv"
-phase_3_csv_file    = csv_folder / "phase_3.csv"
+phase_m1_csv_file   = "phase_m1.csv"
+phase_1_csv_file    = "phase_1.csv"
+phase_2_csv_file    = "phase_2.csv"
+#phase_3_csv_file    = "phase_3.csv"
 
-# nop         = 0x60000000 # "no operation" instruction
-# button_nop  = 0x10808080 # pscmpu1 cr1, p0, p16 (basically a nop; only affects CR1 which nothing should read from. controller inputs are Start + neutral gray stick)
-# icbi_r12    = 0x7C0067AC # icbi r0, r12 ; invalidates instruction cache at r12=0x803F0F3C (pad 2 C/LR address)
-# b_42        = 0x4BFFFFF0 # branch backwards 0x10 bytes (pad 4 -> pad 2)
-# b_4safety   = 0x4BE24718 # branch from pad 4 -> 0x80215664 (end of dMsg_Delete)
+phase_0_csv_file    = "phase_0_hack.csv"
+phase_3_csv_file    = "phase_3_hack.csv"
+
+
+nop         = 0x60000000 # "no operation" instruction
+button_nop  = 0x10808080 # pscmpu1 cr1, p0, p16 (basically a nop; only affects CR1 which nothing should read from. controller inputs are Start + neutral gray stick)
+icbi_r12    = 0x7C0067AC # icbi r0, r12 ; invalidates instruction cache at r12=0x803F0F3C (pad 2 C/LR address)
+b_42        = 0x4BFFFFF0 # branch backwards 0x10 bytes (pad 4 -> pad 2)
+b_4safety   = 0x4BE24718 # branch from pad 4 -> 0x80215664 (end of dMsg_Delete)
 
 ks = Ks(KS_ARCH_PPC, KS_MODE_PPC64)
 
-phase_1_Nreps = 10   # number of times to perform each DME write in phase 0.5-1.5 
+phase1_Nreps = 10   # number of times to perform each DME write in phase 0.5-1.5 
                     # each DME write in these phases has a ~20% chance to occur while that line is being executed, so P(success) ~ (1-.2**Nreps)**Ninstructions
 
 # GUI color scheme
@@ -166,11 +169,12 @@ def run_phase_m1():
 ######################################################################################################
 # PHASE 0: Trigger ACE
 ######################################################################################################
-# def run_phase_0():
-#     log("Running Phase 0...")
-#     #my_DME_write(0x8039D778, 0x803F0F3C)
-#     #my_DME_writes_from_csv('phase_0_hack.csv', Nreps=1)
-#     log("Phase 0 complete.\n")
+def run_phase_0():
+    log("Running Phase 0...")    
+    # To avoid doing the full ACE setup, this directly hacks the J2DTextBox::~J2DTextBox vtable value to point to pad 2
+    my_DME_writes_from_csv(phase_0_csv_file, Nreps=1)
+    # Then talk to Mesa and close his last text box to trigger ACE and enter phase 1
+    log("Phase 0 complete.\n")
 
 ################################################################################
 # PHASE 1: Set up input detection & cache management for phase 2 (main payload)
@@ -244,8 +248,8 @@ phase_frame = tk.LabelFrame(root, text="Phases", padx=10, pady=10, bg=BG, fg=FG)
 phase_frame.pack(padx=10, pady=10, fill="x")
 
 btn_m1  = tk.Button(phase_frame, text="Phase -1: Set PADs 2-4",   command=run_phase_m1)
-#btn_0   = tk.Button(phase_frame, text="Phase 0: Trigger ACE", command=run_phase_0)
-btn_0   = tk.Button(phase_frame, text="Phase 0: Trigger ACE", state="disabled")
+btn_0   = tk.Button(phase_frame, text="Phase 0: Trigger ACE", command=run_phase_0)
+#btn_0   = tk.Button(phase_frame, text="Phase 0: Trigger ACE", state="disabled")
 #btn_05  = tk.Button(phase_frame, text="Phase 0.5", command=run_phase_05)
 btn_1   = tk.Button(phase_frame, text="Phase 1: Setup",   command=run_phase_1)
 #btn_15  = tk.Button(phase_frame, text="Phase 1.5", command=run_phase_15)
