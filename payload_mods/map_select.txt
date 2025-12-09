@@ -26,12 +26,12 @@
 80330F08:   and.    r17, r15, r16
 80330F0C:   beq  -> 0x80330F20          # if neither X nor Y is pressed, skip to end
 
-# If X is pressed, write 0x80394BC4 → 0x80ADD334
+# If Start is pressed, write 0x80394BC4 → 0x80ADD334
 80330F10:   lis     r18, 0x8039
 80330F14:   ori     r18, r18, 0x4BC4    # r18 = 0x80394BC4
 
 ########################################################################################
-# Perform write (if Y or X is pressed)
+# Perform write (if Y or Start is pressed)
 80330F18:   lis     r19, 0x80AE
 80330F1C:   stw     r18, -0x2CCC(r19)     # r19 = 0x80ADD334
 
